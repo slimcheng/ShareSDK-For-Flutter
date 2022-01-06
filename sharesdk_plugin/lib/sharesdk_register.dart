@@ -19,15 +19,20 @@ class ShareSDKRegister {
   static const String _ssdkDisplayName = "display_name";
   static const String _ssdkSandbox = "sandbox_mode";
   static const String _ssdkAppUniversalLink = "app_universalLink";
+  static const String _ssdkclientIdUnsafe = "client_id_unsafe";
+  static const String _ssdkOpen_countryList = "open_countryList";
+
 
   final Map platformsInfo = {};
 
   /// set up sina platform info
-  void setupSinaWeibo(String appkey, String appSecret, String redirectUrl) {
+  void setupSinaWeibo(String appkey, String appSecret, String redirectUrl,
+      String universalLink) {
     Map info = {
       _ssdkAppkey: appkey,
       _ssdkAppSecret: appSecret,
-      _ssdkRedirectUrl: redirectUrl
+      _ssdkRedirectUrl: redirectUrl,
+      _ssdkAppUniversalLink: universalLink
     };
 
     platformsInfo[ShareSDKPlatforms.sina.id] = info;
@@ -35,7 +40,11 @@ class ShareSDKRegister {
 
   /// set up wechat platform info
   void setupWechat(String appId, String appSecret, String appUniversalLink) {
-    Map info = {_ssdkAppId: appId, _ssdkAppSecret: appSecret, _ssdkAppUniversalLink: appUniversalLink};
+    Map info = {
+      _ssdkAppId: appId,
+      _ssdkAppSecret: appSecret,
+      _ssdkAppUniversalLink: appUniversalLink
+    };
     platformsInfo[ShareSDKPlatforms.wechatSeries.id] = info;
   }
 
@@ -68,6 +77,16 @@ class ShareSDKRegister {
     platformsInfo[ShareSDKPlatforms.facebook.id] = info;
   }
 
+  void setupSnapchat(String appkey, String appSecret, String redirectUrl) {
+    Map info = {
+      _ssdkclientIdUnsafe: appkey,
+      _ssdkAppSecret: appSecret,
+      _ssdkRedirectUrl: redirectUrl
+    };
+
+    platformsInfo[ShareSDKPlatforms.snapchat.id] = info;
+  }
+
   /// set up TencentWeibo platform info
   void setupTencentWeibo(String appkey, String appSecret, String redirectUrl) {
     Map info = {
@@ -77,6 +96,17 @@ class ShareSDKRegister {
     };
 
     platformsInfo[ShareSDKPlatforms.tencentWeibo.id] = info;
+  }
+
+  /// set up MingDao platform info
+  void setupMingDao(String appKey, String appSecret, String redirectUrl) {
+    Map info = {
+      _ssdkAppkey: appKey,
+      _ssdkAppSecret: appSecret,
+      _ssdkRedirectUrl: redirectUrl
+    };
+
+    platformsInfo[ShareSDKPlatforms.mingDao.id] = info;
   }
 
   /// set up yixin platform info
@@ -227,11 +257,11 @@ class ShareSDKRegister {
   }
 
   /// set up dropbox platform info
-  void setupDropbox(String appkey, String appSecret, String redirectUrl) {
+  void setupDropbox(String appkey, String appSecret, String oauthCallback) {
     Map info = {
       _ssdkAppkey: appkey,
       _ssdkAppSecret: appSecret,
-      _ssdkRedirectUrl: redirectUrl
+      _ssdkOAuthCallback: oauthCallback
     };
 
     platformsInfo[ShareSDKPlatforms.dropbox.id] = info;
@@ -262,9 +292,30 @@ class ShareSDKRegister {
     Map info = {
       _ssdkAppId: appId,
     };
-
-    platformsInfo[ShareSDKPlatforms.dingding.id] = info;
+    if(platformsInfo[ShareSDKPlatforms.dingding.id] == null){
+      platformsInfo[ShareSDKPlatforms.dingding.id] = info;
+    }else{
+      Map param = platformsInfo[ShareSDKPlatforms.dingding.id];
+      info.addEntries(param.entries);
+      platformsInfo[ShareSDKPlatforms.dingding.id] = info;
+    }
   }
+
+  void setupDingTalkAuth(String appId, String appSecret, String redirectUrl) {
+    Map info = {
+      "auth"+_ssdkAppId: appId,
+      "auth"+_ssdkAppSecret: appSecret,
+      "auth"+_ssdkRedirectUrl: redirectUrl,
+    };
+    if(platformsInfo[ShareSDKPlatforms.dingding.id] == null){
+      platformsInfo[ShareSDKPlatforms.dingding.id] = info;
+    }else{
+      Map param = platformsInfo[ShareSDKPlatforms.dingding.id];
+      info.addEntries(param.entries);
+      platformsInfo[ShareSDKPlatforms.dingding.id] = info;
+    }
+  }
+
 
   /// set up meipai platform info
   void setupMeiPai(String appkey) {
@@ -315,6 +366,28 @@ class ShareSDKRegister {
 
     platformsInfo[ShareSDKPlatforms.douyin.id] = info;
   }
+
+  /// set up KuaiShou platform info
+  void setupKuaiShou(String appkey, String appSecret, String appUniversalLink) {
+    Map info = {
+      _ssdkAppId: appkey,
+      _ssdkAppSecret: appSecret,
+      _ssdkAppUniversalLink: appUniversalLink
+    };
+
+    platformsInfo[ShareSDKPlatforms.kuaishou.id] = info;
+  }
+
+  /// set up TikTok platform info
+  void setupTikTok(String appkey, String appSecret) {
+    Map info = {
+      _ssdkAppkey: appkey,
+      _ssdkAppSecret: appSecret,
+    };
+
+    platformsInfo[ShareSDKPlatforms.tiktok.id] = info;
+  }
+
   /// set up oasis platform info
   void setupOasis(String appkey) {
     Map info = {
@@ -322,5 +395,14 @@ class ShareSDKRegister {
     };
 
     platformsInfo[ShareSDKPlatforms.oasis.id] = info;
+  }
+
+  /// set up SMS platform info
+  void setupSMS(bool openCountryList) {
+    Map info = {
+      _ssdkOpen_countryList: openCountryList,
+    };
+
+    platformsInfo[ShareSDKPlatforms.sms.id] = info;
   }
 }

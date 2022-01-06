@@ -1,9 +1,11 @@
 #import "SharesdkPlugin.h"
 #import <ShareSDK/ShareSDKHeader.h>
+#import <ShareSDKUI/ShareSDKUI.h>
 #import <ShareSDKExtension/ShareSDK+Extension.h>
 #import <MOBFoundation/MOBFoundation.h>import 'package:flutter/services.dart';
 #import <objc/message.h>
 #import <MOBFoundation/MobSDK+Privacy.h>
+
 typedef NS_ENUM(NSUInteger, PluginMethod) {
     PluginMethodGetVersion          = 0,
     PluginMethodShare               = 1,
@@ -20,7 +22,9 @@ typedef NS_ENUM(NSUInteger, PluginMethod) {
     PluginMethodUploadPrivacyPermissionStatus = 12,
     PluginMethodSetAllowShowPrivacyWindow = 13,
     PluginMethodGetPrivacyPolicy = 14,
-    PluginMethodSetPrivacyUI = 15
+    PluginMethodSetPrivacyUI = 15,
+    PluginMethodShareWithActivity = 16
+
 };
 
 @interface SharesdkPlugin()<FlutterStreamHandler,ISSERestoreSceneDelegate>
@@ -29,6 +33,8 @@ typedef NS_ENUM(NSUInteger, PluginMethod) {
 
 // 事件回调
 @property (nonatomic, copy) void (^callBack) (id _Nullable event);
+
+@property (nonatomic, strong) NSMutableDictionary *sceneData;
 
 @end
 
@@ -68,7 +74,8 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
                            @"uploadPrivacyPermissionStatus":@(PluginMethodUploadPrivacyPermissionStatus),
                            @"setAllowShowPrivacyWindow":@(PluginMethodSetAllowShowPrivacyWindow),
                            @"setPrivacyUI":@(PluginMethodSetPrivacyUI),
-                           @"getPrivacyPolicy":@(PluginMethodGetPrivacyPolicy)
+                           @"getPrivacyPolicy":@(PluginMethodGetPrivacyPolicy),
+                           @"shareWithActivity":@(PluginMethodShareWithActivity)
                            };
     [registrar addMethodCallDelegate:instance channel:channel];
     
@@ -137,6 +144,10 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
                 [self _uploadPrivacyPermissionStatus:call.arguments result:result];
             }
                 break;
+            case PluginMethodShareWithActivity:{
+                [self _shareActivityWithArgs:call.arguments result:result];
+            }
+                break;
             default:
                 NSAssert(NO, @"The method requires an implementation ！");
                 break;
@@ -164,18 +175,154 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
             }
         }
     }
-    [ShareSDK share:type parameters:params.mutableCopy onStateChanged:^(SSDKResponseState state, NSDictionary *userData, SSDKContentEntity *contentEntity, NSError *error) {
-        if (state != SSDKResponseStateBegin)
-        {
-            NSDictionary *dic = @{
-                                  @"state":@(state),
-                                  @"userData":userData?:[NSNull null],
-                                  @"contentEntity":contentEntity.dictionaryValue?:[NSNull null],
-                                  @"error":[self _covertError:error]
-                                  };
-            result(dic);
-        }
-    }];
+    
+    //Facebook
+    NSArray *imageIdentifier = nil;
+    if ([params[@"facebookAssetLocalIdentifierKey_image"] isKindOfClass:[NSString class]])  {
+        imageIdentifier = [params[@"facebookAssetLocalIdentifierKey_image"] componentsSeparatedByString:@","];
+    }
+    id videoIdentifier = nil;
+    if ([params[@"facebookAssetLocalIdentifierKey_video"] isKindOfClass:[NSString class]])  {
+        videoIdentifier = params[@"facebookAssetLocalIdentifierKey_video"];
+    }
+    if (imageIdentifier || videoIdentifier) {
+        [params SSDKSetupFacebookParamsByImagePHAsset:imageIdentifier videoPHAsset:videoIdentifier];
+    }
+    
+    //kakaotalk
+    NSString *key = [NSString stringWithFormat:@"@platform(%ld)",type];
+    NSMutableDictionary *platformParams = [self _covertParams:params[key]].mutableCopy;
+    
+    NSString *templateId = nil;
+    if ([platformParams[@"templateId"] isKindOfClass:[NSString class]])  {
+        templateId = platformParams[@"templateId"];
+    }
+    NSURL *url = nil;
+    if ([platformParams[@"url"] isKindOfClass:[NSURL class]])  {
+        url = platformParams[@"url"];
+    }
+    NSDictionary *templateArgs = nil;
+    if ([platformParams[@"templateArgs"] isKindOfClass:[NSDictionary class]])  {
+        templateArgs = platformParams[@"templateArgs"];
+    }
+    if (templateId || url) {
+        [params SSDKSetupKaKaoTalkParamsByUrl:url templateId:templateId templateArgs:templateArgs];
+    }
+    
+    //dropbox
+    NSString *attachments = nil;
+    if ([platformParams[@"attachments"] isKindOfClass:[NSString class]])  {
+        attachments = platformParams[@"attachments"];
+    }
+    if (attachments) {
+        [params SSDKSetupDropboxParamsByAttachment:[NSURL URLWithString:attachments]];
+    }
+    
+    //通用相册分享参数设置
+    NSArray *imageAssets = nil;
+    if ([params[@"imageAssets"] isKindOfClass:[NSString class]])  {
+        imageAssets = [params[@"imageAssets"] componentsSeparatedByString:@","];
+    }
+    id videoAsset = nil;
+    if (params[@"videoAsset"] != nil)  {
+        videoAsset = params[@"videoAsset"];
+    }
+    if (imageAssets || videoAsset) {
+        [params SSDKSetupShareParamsByImageAsset:imageAssets videoAsset:videoAsset completeHandle:^(BOOL complete) {
+            if(complete){
+                [ShareSDK share:type parameters:params.mutableCopy onStateChanged:^(SSDKResponseState state, NSDictionary *userData, SSDKContentEntity *contentEntity, NSError *error) {
+                    if (state != SSDKResponseStateBegin)
+                    {
+                        NSDictionary *dic = @{
+                                              @"state":@(state),
+                                              @"userData":[self _ssdkGetDictionaryWithObject:userData]?:[NSNull null],
+                                              @"contentEntity":[self _ssdkGetDictionaryWithObject:contentEntity.dictionaryValue]?:[NSNull null],
+                                              @"error":[self _covertError:error]
+                                              };
+                        
+                        result([self _ssdkGetDictionaryWithObject:dic]);
+                    }
+                }];
+            }else{
+                NSDictionary *dic = @{
+                                      @"state":@(2),
+                                      @"user":[NSNull null],
+                                      @"error":@{@"error":@"失败"}
+                                      };
+                result([self _ssdkGetDictionaryWithObject:dic]);
+            }
+        }];
+    }else{
+        [ShareSDK share:type parameters:params.mutableCopy onStateChanged:^(SSDKResponseState state, NSDictionary *userData, SSDKContentEntity *contentEntity, NSError *error) {
+            if (state != SSDKResponseStateBegin)
+            {
+                NSDictionary *dic = @{
+                                      @"state":@(state),
+                                      @"userData":[self _ssdkGetDictionaryWithObject:userData]?:[NSNull null],
+                                      @"contentEntity":[self _ssdkGetDictionaryWithObject:contentEntity.dictionaryValue]?:[NSNull null],
+                                      @"error":[self _covertError:error]
+                                      };
+                
+                result([self _ssdkGetDictionaryWithObject:dic]);
+            }
+        }];
+    }
+}
+
+- (void)_shareActivityWithArgs:(NSDictionary *)args result:(FlutterResult)result
+{
+    NSInteger type = [args[@"platform"] integerValue];
+    NSMutableDictionary *params = [self _covertParams:args[@"params"]].mutableCopy;
+
+    //通用相册分享参数设置
+    NSArray *imageAssets = nil;
+    if ([params[@"imageAssets"] isKindOfClass:[NSString class]])  {
+        imageAssets = [params[@"imageAssets"] componentsSeparatedByString:@","];
+    }
+    id videoAsset = nil;
+    if (params[@"videoAsset"] != nil)  {
+        videoAsset = params[@"videoAsset"];
+    }
+    if (imageAssets || videoAsset) {
+        [params SSDKSetupShareParamsByImageAsset:imageAssets videoAsset:videoAsset completeHandle:^(BOOL complete) {
+            if(complete){
+                [ShareSDK shareByActivityViewController:type parameters:params.mutableCopy onStateChanged:^(SSDKResponseState state, NSDictionary *userData, SSDKContentEntity *contentEntity, NSError *error) {
+                    if (state != SSDKResponseStateBegin)
+                    {
+                        NSDictionary *dic = @{
+                                              @"state":@(state),
+                                              @"userData":[self _ssdkGetDictionaryWithObject:userData]?:[NSNull null],
+                                              @"contentEntity":[self _ssdkGetDictionaryWithObject:contentEntity.dictionaryValue]?:[NSNull null],
+                                              @"error":[self _covertError:error]
+                                              };
+                        
+                        result([self _ssdkGetDictionaryWithObject:dic]);
+                    }
+                }];
+            }else{
+                NSDictionary *dic = @{
+                                      @"state":@(2),
+                                      @"user":[NSNull null],
+                                      @"error":@{@"error":@"失败"}
+                                      };
+                result([self _ssdkGetDictionaryWithObject:dic]);
+            }
+        }];
+    }else{
+        [ShareSDK shareByActivityViewController:type parameters:params.mutableCopy onStateChanged:^(SSDKResponseState state, NSDictionary *userData, SSDKContentEntity *contentEntity, NSError *error) {
+            if (state != SSDKResponseStateBegin)
+            {
+                NSDictionary *dic = @{
+                                      @"state":@(state),
+                                      @"userData":[self _ssdkGetDictionaryWithObject:userData]?:[NSNull null],
+                                      @"contentEntity":[self _ssdkGetDictionaryWithObject:contentEntity.dictionaryValue]?:[NSNull null],
+                                      @"error":[self _covertError:error]
+                                      };
+                
+                result([self _ssdkGetDictionaryWithObject:dic]);
+            }
+        }];
+    }
 }
 
 - (void)_authWithArgs:(NSDictionary *)args result:(FlutterResult)result
@@ -190,7 +337,7 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
                                   @"user":user.dictionaryValue?:[NSNull null],
                                   @"error":[self _covertError:error]
                                   };
-            result(dic);
+            result([self _ssdkGetDictionaryWithObject:dic]);
         }
     }];
 }
@@ -208,11 +355,12 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
                           @"user":[NSNull null],
                           @"error":[NSNull null]
                           };
-    result(dic);
+    result([self _ssdkGetDictionaryWithObject:dic]);
 }
 
 - (void)_cancelAuthWithArgs:(NSNumber *)args result:(FlutterResult)result
 {
+    
     [ShareSDK cancelAuthorize:args.integerValue result:^(NSError *error) {
         NSInteger state = SSDKResponseStateFail;
         if (error == nil)
@@ -224,7 +372,7 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
                               @"user":[NSNull null],
                               @"error":[self _covertError:error]
                               };
-        result(dic);
+        result([self _ssdkGetDictionaryWithObject:dic]);
     }];
 }
 
@@ -239,7 +387,7 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
                                   @"user":user.dictionaryValue?:[NSNull null],
                                   @"error":[self _covertError:error],
                                   };
-            result(dic);
+            result([self _ssdkGetDictionaryWithObject:dic]);
         }
     }];
 }
@@ -270,93 +418,242 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
             }
         }
     }
-    SEL showEditorSEL = NSSelectorFromString(@"showShareEditor:otherPlatforms:shareParams:editorConfiguration:onStateChanged:");
-    NSAssert([ShareSDK.class respondsToSelector:showEditorSEL], @"Need to import ShareSDKUI.framework");
-    ((id(*)(id,
-            SEL,
-            SSDKPlatformType,
-            NSArray *,
-            NSMutableDictionary *,
-            id,
-            void(^)(SSDKResponseState,SSDKPlatformType,NSDictionary*,SSDKContentEntity*,NSError *,BOOL)))objc_msgSend)
-    (ShareSDK.class,
-     showEditorSEL,
-     type,
-     nil,
-     params.mutableCopy,
-     nil,
-     ^(SSDKResponseState state,
-       SSDKPlatformType platformType,
-       NSDictionary *userData,
-       SSDKContentEntity *contentEntity,
-       NSError *error,
-       BOOL end){
-         
-         if (state != SSDKResponseStateBegin && state != SSDKResponseStateUpload)
-         {
-             NSDictionary *dic = @{
-                                   @"state":@(state),
-                                   @"platform":@(platformType),
-                                   @"error":[self _covertError:error],
-                                   @"userData":userData?:[NSNull null],
-                                   @"contentEntity":contentEntity.dictionaryValue?:[NSNull null],
-                                   };
-             result(dic);
-         }
-     });
+    NSArray *imageIdentifier = nil;
+    if ([params[@"facebookAssetLocalIdentifierKey_image"] isKindOfClass:[NSString class]])  {
+        imageIdentifier = [params[@"facebookAssetLocalIdentifierKey_image"] componentsSeparatedByString:@","];
+    }
+    id videoIdentifier = nil;
+    if ([params[@"facebookAssetLocalIdentifierKey_video"] isKindOfClass:[NSString class]])  {
+        videoIdentifier = params[@"facebookAssetLocalIdentifierKey_video"];
+    }
+    if (imageIdentifier || videoIdentifier) {
+        [params SSDKSetupFacebookParamsByImagePHAsset:imageIdentifier videoPHAsset:videoIdentifier];
+    }
     
+    //kakaotalk
+    NSString *key = [NSString stringWithFormat:@"@platform(%ld)",type];
+    NSMutableDictionary *platformParams = [self _covertParams:params[key]].mutableCopy;
+    
+    NSString *templateId = nil;
+    if ([platformParams[@"templateId"] isKindOfClass:[NSString class]])  {
+        templateId = platformParams[@"templateId"];
+    }
+    NSURL *url = nil;
+    if ([platformParams[@"url"] isKindOfClass:[NSURL class]])  {
+        url = platformParams[@"url"];
+    }
+    NSDictionary *templateArgs = nil;
+    if ([platformParams[@"templateArgs"] isKindOfClass:[NSDictionary class]])  {
+        templateArgs = platformParams[@"templateArgs"];
+    }
+    if (templateId || url) {
+        [params SSDKSetupKaKaoTalkParamsByUrl:url templateId:templateId templateArgs:templateArgs];
+    }
+    
+    //dropbox
+    NSString *attachments = nil;
+    if ([platformParams[@"attachments"] isKindOfClass:[NSString class]])  {
+        attachments = platformParams[@"attachments"];
+    }
+    if (attachments) {
+        [params SSDKSetupDropboxParamsByAttachment:attachments];
+    }
+    
+    //通用相册分享参数设置
+    NSArray *imageAssets = nil;
+    if ([params[@"imageAssets"] isKindOfClass:[NSString class]])  {
+        imageAssets = [params[@"imageAssets"] componentsSeparatedByString:@","];
+    }
+    id videoAsset = nil;
+    if (params[@"videoAsset"] != nil)  {
+        videoAsset = params[@"videoAsset"];
+    }
+    if (imageAssets || videoAsset) {
+        [params SSDKSetupShareParamsByImageAsset:imageAssets videoAsset:videoAsset completeHandle:^(BOOL complete) {
+            if(complete){
+                [ShareSDK showShareEditor:type
+                           otherPlatforms:nil
+                              shareParams:params.mutableCopy
+                      editorConfiguration:nil
+                           onStateChanged:^(SSDKResponseState state, SSDKPlatformType platformType, NSDictionary *userData, SSDKContentEntity *contentEntity, NSError *error, BOOL end) {
+                    
+                    if (state != SSDKResponseStateBegin && state != SSDKResponseStateUpload)
+                    {
+                        NSDictionary *dic = @{
+                                              @"state":@(state),
+                                              @"platform":@(platformType),
+                                              @"error":[self _covertError:error],
+                                              @"userData":userData?:[NSNull null],
+                                              @"contentEntity":[self _ssdkGetDictionaryWithObject:contentEntity.dictionaryValue]?:[NSNull null],
+                                              };
+                        result([self _ssdkGetDictionaryWithObject:dic]);
+                    }
+                }];
+            }else{
+                NSDictionary *dic = @{
+                                      @"state":@(2),
+                                      @"user":[NSNull null],
+                                      @"error":@{@"error":@"失败"}
+                                      };
+                result([self _ssdkGetDictionaryWithObject:dic]);
+            }
+        }];
+    }else{
+        [ShareSDK showShareEditor:type
+                   otherPlatforms:nil
+                      shareParams:params.mutableCopy
+              editorConfiguration:nil
+                   onStateChanged:^(SSDKResponseState state, SSDKPlatformType platformType, NSDictionary *userData, SSDKContentEntity *contentEntity, NSError *error, BOOL end) {
+            
+            if (state != SSDKResponseStateBegin && state != SSDKResponseStateUpload)
+            {
+                NSDictionary *dic = @{
+                                      @"state":@(state),
+                                      @"platform":@(platformType),
+                                      @"error":[self _covertError:error],
+                                      @"userData":userData?:[NSNull null],
+                                      @"contentEntity":[self _ssdkGetDictionaryWithObject:contentEntity.dictionaryValue]?:[NSNull null],
+                                      };
+                result([self _ssdkGetDictionaryWithObject:dic]);
+            }
+        }];
+    }
 }
 
 - (void)_showMenuWithArgs:(NSDictionary *)args result:(FlutterResult)result
 {
     NSArray *types = [args[@"platforms"] isKindOfClass:NSArray.class] ?args[@"platforms"]:nil;
-    NSDictionary *params = [self _covertParams:args[@"params"]].mutableCopy;
+    id view = [args[@"view"] isKindOfClass:UIView.class] ? args[@"view"] : nil;
+    NSMutableDictionary *params = [self _covertParams:args[@"params"]].mutableCopy;
     
-    SEL showMenuSEL = NSSelectorFromString(@"showShareActionSheet:customItems:shareParams:sheetConfiguration:onStateChanged:");
-    NSAssert([ShareSDK.class respondsToSelector:showMenuSEL], @"Need to import ShareSDKUI.framework");
+    //Facebook
+    NSArray *imageIdentifier = nil;
+    if ([params[@"facebookAssetLocalIdentifierKey_image"] isKindOfClass:[NSString class]])  {
+        imageIdentifier = [params[@"facebookAssetLocalIdentifierKey_image"] componentsSeparatedByString:@","];
+    }
+    id videoIdentifier = nil;
+    if ([params[@"facebookAssetLocalIdentifierKey_video"] isKindOfClass:[NSString class]])  {
+        videoIdentifier = params[@"facebookAssetLocalIdentifierKey_video"];
+    }
+    if (imageIdentifier || videoIdentifier) {
+        [params SSDKSetupFacebookParamsByImagePHAsset:imageIdentifier videoPHAsset:videoIdentifier];
+    }
     
-    ((id(*)(id,
-            SEL,
-            UIView *,
-            NSArray *,
-            NSMutableDictionary *,
-            id,
-            void(^)(SSDKResponseState,SSDKPlatformType,NSDictionary*,SSDKContentEntity*,NSError *,BOOL)))objc_msgSend)
-    (ShareSDK.class
-     ,showMenuSEL,
-     nil,
-     types,
-     params.mutableCopy,
-     nil,
-     ^(SSDKResponseState state,
-       SSDKPlatformType platformType,
-       NSDictionary *userData,
-       SSDKContentEntity *contentEntity,
-       NSError *error,
-       BOOL end){
-         
-         if (state != SSDKResponseStateBegin && state != SSDKResponseStateUpload)
-         {
-             NSDictionary *dic = @{
-                                   @"state":@(state),
-                                   @"platform":@(platformType),
-                                   @"error":[self _covertError:error],
-                                   @"userData":userData?:[NSNull null],
-                                   @"contentEntity":contentEntity.dictionaryValue?:[NSNull null],
-                                   };
-             result(dic);
-         }
-     });
+    //通用相册分享参数设置
+    NSArray *imageAssets = nil;
+    if ([params[@"imageAssets"] isKindOfClass:[NSString class]])  {
+        imageAssets = [params[@"imageAssets"] componentsSeparatedByString:@","];
+    }
+    id videoAsset = nil;
+    if (params[@"videoAsset"] != nil)  {
+        videoAsset = params[@"videoAsset"];
+    }
+    if (imageAssets || videoAsset) {
+        [params SSDKSetupShareParamsByImageAsset:imageAssets videoAsset:videoAsset completeHandle:^(BOOL complete) {
+            if(complete){
+                [ShareSDK showShareActionSheet:view
+                                   customItems:types
+                                   shareParams:params.mutableCopy
+                            sheetConfiguration:nil
+                                onStateChanged:^(SSDKResponseState state, SSDKPlatformType platformType, NSDictionary *userData, SSDKContentEntity *contentEntity, NSError *error, BOOL end) {
+                    
+                    if (state != SSDKResponseStateBegin && state != SSDKResponseStateUpload)
+                    {
+                        NSDictionary *dic = @{
+                                              @"state":@(state),
+                                              @"platform":@(platformType),
+                                              @"error":[self _covertError:error],
+                                              @"userData":userData?:[NSNull null],
+                                              @"contentEntity":[self _ssdkGetDictionaryWithObject:contentEntity.dictionaryValue]?:[NSNull null],
+                                              };
+                        dic = [self _ssdkGetDictionaryWithObject:dic];
+                        result(dic);
+                    }
+                }];
+            }else{
+                NSDictionary *dic = @{
+                                      @"state":@(2),
+                                      @"user":[NSNull null],
+                                      @"error":@{@"error":@"失败"}
+                                      };
+                result([self _ssdkGetDictionaryWithObject:dic]);
+            }
+        }];
+    }else{
+        [ShareSDK showShareActionSheet:view
+                           customItems:types
+                           shareParams:params.mutableCopy
+                    sheetConfiguration:nil
+                        onStateChanged:^(SSDKResponseState state, SSDKPlatformType platformType, NSDictionary *userData, SSDKContentEntity *contentEntity, NSError *error, BOOL end) {
+            
+            if (state != SSDKResponseStateBegin && state != SSDKResponseStateUpload)
+            {
+                NSDictionary *dic = @{
+                                      @"state":@(state),
+                                      @"platform":@(platformType),
+                                      @"error":[self _covertError:error],
+                                      @"userData":userData?:[NSNull null],
+                                      @"contentEntity":[self _ssdkGetDictionaryWithObject:contentEntity.dictionaryValue]?:[NSNull null],
+                                      };
+                dic = [self _ssdkGetDictionaryWithObject:dic];
+                result(dic);
+            }
+        }];
+    }
 }
 
 - (id)_covertError:(NSError *)error
 {
     if (error)
     {
-        return @{@"code":@(error.code),@"userInfo":error.userInfo?:@{}};
+        NSDictionary *errorInfo = [self _ssdkGetDictionaryWithObject:error.userInfo];
+        return @{@"code":@(error.code),@"userInfo":errorInfo?:@{}};
     }
     
     return [NSNull null];
+}
+
+- (id)_getObjectWithObject:(id)obj{
+    id basicData = nil;
+    if ([obj isKindOfClass:[NSString class]]) {
+        basicData = obj;
+    }else if([obj isKindOfClass:[NSNumber class]]){
+        basicData = obj;
+    }else if([obj isKindOfClass:[NSURL class]]){
+        basicData = [obj absoluteString];
+    }else if([obj isKindOfClass:[SSDKImage class]]){
+        basicData = [[obj URL] absoluteString];
+    }else if([obj isKindOfClass:[NSArray class]]){
+        NSMutableArray *array = [NSMutableArray array];
+        for (id sigleObject in obj) {
+            if ([sigleObject isKindOfClass:[NSDictionary class]]) {
+                id sigdic = [self _ssdkGetDictionaryWithObject:sigleObject];
+                if (sigdic) {
+                    [array addObject:sigdic];
+                }
+            }else{
+                id sigData = [self _getObjectWithObject:sigleObject];
+                if (sigData) {
+                    [array addObject:sigData];
+                }
+            }
+        }
+        basicData = array.count > 0?array:nil;
+    }else if([obj isKindOfClass:[NSDictionary class]]){
+        basicData = [self _ssdkGetDictionaryWithObject:obj];
+    }
+    return basicData;
+}
+
+- (NSDictionary *)_ssdkGetDictionaryWithObject:(NSDictionary *)object{
+    NSMutableDictionary *dic = [NSMutableDictionary dictionary];
+    [object enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, id  _Nonnull obj, BOOL * _Nonnull stop) {
+        id data = [self _getObjectWithObject:obj];
+        if (data) {
+            dic[key] = data;
+        }
+    }];
+    return dic.count > 0 ?dic:nil;
 }
 
 - (NSMutableDictionary *)_covertParams:(NSDictionary *)params
@@ -365,8 +662,8 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
     
     NSArray *urlKeys = @[@"url",@"audio_url",@"audio_flash_url",@"video_flash_url",@"video_asset_url"];
     NSArray *thumbImageKeys = @[@"thumb_image",@"wxmp_hdthumbimage"];
-    NSArray *dataKeys = @[@"emoticon_data",@"file_data",@"source_file"];
-    
+    NSArray *dataKeys = @[@"emoticon_data",@"file_data",@"source_file",@"video",@"audio"];
+    SSDKImage *img = nil;
     for (id key in params.allKeys)
     {
         if ([urlKeys containsObject:key])
@@ -383,8 +680,22 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
         {
             tmp[key] = ((id(*)(id,SEL,id))objc_msgSend)(NSClassFromString(@"SSDKData"),NSSelectorFromString(@"dataWithObject:"),params[key]);
         }
+
+        if ([key isEqualToString:@"thumbImage"])
+        {
+            img = (((NSArray *(*)(id, SEL, id))objc_msgSend)(params.mutableCopy,NSSelectorFromString(@"_convertToImages:"),params[key]))[0];
+            void(^ handler)(UIImage *) = ^(UIImage *image) {
+                [tmp setObject:image forKey:@"thumbImage"];
+            };
+            ((void(*)(id, SEL, id))objc_msgSend)(img,NSSelectorFromString(@"getNativeImage:"),handler);
+        }
         
         if ([key isEqualToString:@"images"])
+        {
+            tmp[key] = ((NSArray *(*)(id, SEL, id))objc_msgSend)(params.mutableCopy,NSSelectorFromString(@"_convertToImages:"),params[key]);
+        }
+        
+        if ([key isEqualToString:@"Sticker"])
         {
             tmp[key] = ((NSArray *(*)(id, SEL, id))objc_msgSend)(params.mutableCopy,NSSelectorFromString(@"_convertToImages:"),params[key]);
         }
@@ -411,9 +722,12 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
 {
     Class connector = NSClassFromString(@"WeChatConnector");
     NSAssert(connector != NULL, @"Need to import WechatConnector.framework !");
-    SEL openMiniProgramSEL = NSSelectorFromString(@"openMiniProgramWithUserName:path:miniProgramType:");
-    BOOL opened = ((BOOL(*)(id,SEL,NSString *,NSString *,int))objc_msgSend)(connector,openMiniProgramSEL,args[@"userName"],args[@"path"],[args[@"type"] intValue]);
-    result(@(opened));
+    
+    void(^ complete)(BOOL) = ^(BOOL success) {
+        result(@(success));
+    };
+    SEL openMiniProgramSEL = NSSelectorFromString(@"openMiniProgramWithUserName:path:miniProgramType:complete:");
+    ((void(*)(id,SEL,NSString *,NSString *,int,id))objc_msgSend)(connector,openMiniProgramSEL,args[@"userName"],args[@"path"],[args[@"type"] intValue],complete);
 }
 
 - (void)_isClientInstalledWithArgs:(NSDictionary *)args result:(FlutterResult)result
@@ -429,12 +743,12 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
 }
 
 - (void)_setAllowShowPrivacyWindow:(NSDictionary *)args result:(FlutterResult)result{
-    [MobSDK setAllowShowPrivacyWindow:[args[@"show"]boolValue]];
+    
     result(@1);
 }
 
 - (void)_getPrivacyPolicy:(NSDictionary *)args result:(FlutterResult)result{
-    [MobSDK getPrivacyPolicy:args[@"type"] compeletion:^(NSDictionary * _Nullable data, NSError * _Nullable error) {
+    [MobSDK getPrivacyPolicy:args[@"type"] language:args[@"language"]  compeletion:^(NSDictionary * _Nullable data, NSError * _Nullable error) {
         result(@{
             @"data":@{@"data":(data[@"content"]?:[NSNull null])},
             @"error":error?@{@"error":@"获取失败"}:[NSNull null]
@@ -443,23 +757,7 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
 }
 
 - (void)_setPrivacyUI:(NSDictionary *)args result:(FlutterResult)result{
-    UIColor *color = nil;
-    NSMutableArray *colors = [NSMutableArray array];
-    NSString *colorString = args[@"backColor"];
-    if ([colorString isKindOfClass:[NSNumber class]]) {
-        color = [MOBFColor colorWithRGB:[colorString integerValue]];
-    }
     
-    NSArray *colorsNumber = args[@"oprationButtonColors"];
-    if ([colorsNumber isKindOfClass:[NSArray class]]) {
-        for (NSNumber *number in colorsNumber) {
-            id colorElement = [MOBFColor colorWithRGB:[number integerValue]];
-            if (colorElement) {
-                [colors addObject:colorElement];
-            }
-        }
-    }
-    [MobSDK setPrivacyBackgroundColor:color operationButtonColor:colors];
     result(nil);
 }
 
@@ -468,11 +766,16 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
 - (FlutterError *)onListenWithArguments:(id)arguments eventSink:(FlutterEventSink)events
 {
     self.callBack = events;
+    if (self.sceneData) {
+        events(self.sceneData);
+    }
+    self.sceneData = nil;
     return nil;
 }
 
 - (FlutterError * _Nullable)onCancelWithArguments:(id _Nullable)arguments
 {
+    self.callBack = nil;
     return nil;
 }
 
@@ -502,15 +805,11 @@ static NSString *const receiverStr = @"SSDKRestoreReceiver";
     {
         resultDict[@"params"] = scene.params;
     }
-       
-    NSString *resultStr  = @"";
-    if (resultDict.count > 0)
-    {
-        resultStr = [MOBFJson jsonStringFromObject:resultDict];
-    }
     if (self.callBack)
     {
         self.callBack(resultDict);
+    }else{
+        self.sceneData = resultDict;
     }
 }
 

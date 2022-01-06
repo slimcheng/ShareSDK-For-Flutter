@@ -48,3 +48,36 @@
 ## 1.2.1
 * Android fix bug that release in Flutter_v1.12.13+hotfix.8 is ok
 * iOS fix bug
+
+## 1.2.4
+
+* iOS add snapchat
+
+## 1.2.5
+
+* iOS add KuaiShou/WatermelonVideo
+* iOS fix bug
+
+## 1.2.6
+* iOS fix bug
+
+## 1.2.7
+* iOS fix  bug
+
+## 1.2.8
+* iOS fix  bug
+
+## 1.2.9
+* iOS fix  bug
+* iOS add TikTok
+* iOS add ShareWithActivity
+
+## 1.3.0
+* iOS fix  bug
+
+## 1.3.1
+* iOS fix  bug
+
+## 1.3.2
+* android fix bug
+* android add douyin

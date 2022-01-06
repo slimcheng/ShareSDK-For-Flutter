@@ -8,9 +8,9 @@ class SSDKError extends Error {
       : code = rawData != null ? rawData["code"] : 0,
         userInfo = rawData != null ? rawData["userInfo"] : {},
         super();
-  final Map rawData;
-  final int code;
-  final Map userInfo;
+  final dynamic? rawData;
+  final int? code;
+  final dynamic? userInfo;
 }
 
 /// model for method
@@ -18,8 +18,8 @@ class ShareSDKMethod {
   ShareSDKMethod({@required this.name, @required this.id})
       : assert(name != null && id != null),
         super();
-  final String name;
-  final int id;
+  final String? name;
+  final int? id;
 }
 
 /// method defines
@@ -46,21 +46,23 @@ class ShareSDKMethods {
   static final ShareSDKMethod isClientInstalled =
       ShareSDKMethod(name: "isClientInstalled", id: 11);
   static final ShareSDKMethod uploadPrivacyPermissionStatus =
-  ShareSDKMethod(name: "uploadPrivacyPermissionStatus", id: 12);
+      ShareSDKMethod(name: "uploadPrivacyPermissionStatus", id: 12);
   static final ShareSDKMethod setAllowShowPrivacyWindow =
-  ShareSDKMethod(name: "setAllowShowPrivacyWindow", id: 13);
+      ShareSDKMethod(name: "setAllowShowPrivacyWindow", id: 13);
   static final ShareSDKMethod getPrivacyPolicy =
-  ShareSDKMethod(name: "getPrivacyPolicy", id: 14);
+      ShareSDKMethod(name: "getPrivacyPolicy", id: 14);
   static final ShareSDKMethod setPrivacyUI =
-  ShareSDKMethod(name: "setPrivacyUI", id: 15);
+      ShareSDKMethod(name: "setPrivacyUI", id: 15);
+  static final ShareSDKMethod shareWithActivity =
+      ShareSDKMethod(name: "shareWithActivity", id: 16);
 }
 
 class ShareSDKPlatform {
   ShareSDKPlatform({@required this.id, @required this.name})
       : assert(id != null && name != null),
         super();
-  final int id;
-  final String name;
+  final int? id;
+  final String? name;
 }
 
 /// supported platform defines
@@ -150,10 +152,20 @@ class ShareSDKPlatforms {
       ShareSDKPlatform(name: "reddit", id: 56);
   static final ShareSDKPlatform douyin =
       ShareSDKPlatform(name: "douyin", id: 59);
-  static final ShareSDKPlatform apple =
-      ShareSDKPlatform(name: 'apple',id: 61);
-  static final ShareSDKPlatform oasis =
-  ShareSDKPlatform(name: 'oasis',id: 64);
+  static final ShareSDKPlatform apple = ShareSDKPlatform(name: 'apple', id: 61);
+  static final ShareSDKPlatform hwaccount =
+      ShareSDKPlatform(name: 'HWAccount', id: 63);
+  static final ShareSDKPlatform oasis = ShareSDKPlatform(name: 'oasis', id: 64);
+  static final ShareSDKPlatform xmaccount =
+      ShareSDKPlatform(name: 'XMAccount', id: 65);
+  static final ShareSDKPlatform snapchat =
+      ShareSDKPlatform(name: 'snapchat', id: 66);
+  static final ShareSDKPlatform kuaishou =
+      ShareSDKPlatform(name: 'kuaishou', id: 68);
+  static final ShareSDKPlatform watermelonvideo =
+      ShareSDKPlatform(name: 'watermelonvideo', id: 69);
+  static final ShareSDKPlatform tiktok =
+      ShareSDKPlatform(name: 'tiktok', id: 70);
   static final ShareSDKPlatform yixinSeries =
       ShareSDKPlatform(name: "yixinSeries", id: 994);
   static final ShareSDKPlatform kakaoSeries =
@@ -169,7 +181,7 @@ class ShareSDKPlatforms {
 /// model for FacebookShareType
 class SSDKFacebookShareType {
   SSDKFacebookShareType({this.value}) : super();
-  final int value;
+  final int? value;
 }
 
 /// supported Facebook share types
@@ -180,8 +192,9 @@ class SSDKFacebookShareTypes extends Object {
 
 class SSDKContentType {
   SSDKContentType({this.value}) : super();
-  final int value;
+  final int? value;
 }
+
 /// supported share content types
 class SSDKContentTypes extends Object {
   static SSDKContentType get auto => SSDKContentType(value: 0);
@@ -193,4 +206,5 @@ class SSDKContentTypes extends Object {
   static SSDKContentType get video => SSDKContentType(value: 6);
   static SSDKContentType get file => SSDKContentType(value: 7);
   static SSDKContentType get miniProgram => SSDKContentType(value: 10);
+  static SSDKContentType get message => SSDKContentType(value: 11);
 }

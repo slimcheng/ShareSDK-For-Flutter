@@ -64,8 +64,8 @@ public class Utils {
                 return "Dropbox";
             case "36":
                 return "VKontakte";
-            /*case "37":
-                return "weChatFavorites";*/
+            case "37":
+                return "WechatFavorite";
             case "38":
                 return "Yixin";
             case "39":
@@ -100,6 +100,10 @@ public class Utils {
                 return "Reddit";
             case "59":
                 return "Douyin";
+            case "63":
+                return "HWAccount";
+            case "65":
+                return "XMAccount";
            /* case "994":
                 return "yixinSeries";
             case "995":
