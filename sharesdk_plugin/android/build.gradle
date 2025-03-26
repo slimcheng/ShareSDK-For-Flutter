@@ -6,12 +6,8 @@ apply plugin: 'com.mob.sdk'
 
 buildscript {
     repositories {
-        maven {
-          url 'https://maven.aliyun.com/repository/google/'
-        }
-        maven {
-          url 'https://maven.aliyun.com/repository/public/'
-        }
+        google()
+        jcenter()
         maven {
             url "http://mvn.mob.com/android"
         }
@@ -34,12 +30,8 @@ buildscript {
 
 rootProject.allprojects {
     repositories {
-        maven {
-          url 'https://maven.aliyun.com/repository/google/'
-        }
-        maven {
-          url 'https://maven.aliyun.com/repository/public/'
-        }
+        google()
+        jcenter()
         maven {
             url "http://mvn.mob.com/android"
         }

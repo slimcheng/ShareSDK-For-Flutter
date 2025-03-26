@@ -8,7 +8,7 @@ import com.mob.MobSDK;
 import com.mob.OperationCallback;
 import com.mob.PrivacyPolicy;
 import com.mob.commons.SHARESDK;
-import com.mob.commons.dialog.entity.MobPolicyUi;
+// import com.mob.commons.dialog.entity.MobPolicyUi;
 import com.mob.tools.utils.Hashon;
 
 import java.util.ArrayList;
@@ -50,8 +50,8 @@ public class SharesdkPlugin implements MethodCallHandler {
   private static final String PluginMethodOpenMiniProgram = "openMiniProgram";
   private static final String PluginMethodIsClientInstalled = "isClientInstalled";
   //隐私协议 getPrivacyPolicy
-  private static final String PluginMethodGetPrivacyPolicy = "getPrivacyPolicy";
-  private static final String PluginMethodUploadPrivacyPermissionStatus = "uploadPrivacyPermissionStatus";
+  // private static final String PluginMethodGetPrivacyPolicy = "getPrivacyPolicy";
+  // private static final String PluginMethodUploadPrivacyPermissionStatus = "uploadPrivacyPermissionStatus";
 
   private static final String EVENTCHANNEL = "SSDKRestoreReceiver";
   private static EventChannel eventChannel;
@@ -192,12 +192,12 @@ public class SharesdkPlugin implements MethodCallHandler {
       case PluginMethodIsClientInstalled:
         isClientInstalled(call, result);
         break;
-      case PluginMethodGetPrivacyPolicy: //隐私协议
-        getPrivacyPolicy(call, result);
-        break;
-      case PluginMethodUploadPrivacyPermissionStatus:
-        submitPrivacyGrantResult(call, result);
-        break;
+      // case PluginMethodGetPrivacyPolicy: //隐私协议
+      //   getPrivacyPolicy(call, result);
+      //   break;
+      // case PluginMethodUploadPrivacyPermissionStatus:
+      //   submitPrivacyGrantResult(call, result);
+      //   break;
       default:
         break;
     }
@@ -205,98 +205,98 @@ public class SharesdkPlugin implements MethodCallHandler {
 
 
 
-  private void submitPrivacyGrantResult(MethodCall call, final Result result) {
-    Log.e("qqq", "====> submitPrivacyGrantResult");
-    HashMap<String, Object> map = call.arguments();
-    String boolStr = String.valueOf(map.get("status"));
-    boolean granted;
-    if (boolStr.equals("1")) { //1 代表同意
-      granted = true;
-    } else {
-      granted = false;
-    }
+  // private void submitPrivacyGrantResult(MethodCall call, final Result result) {
+  //   Log.e("qqq", "====> submitPrivacyGrantResult");
+  //   HashMap<String, Object> map = call.arguments();
+  //   String boolStr = String.valueOf(map.get("status"));
+  //   boolean granted;
+  //   if (boolStr.equals("1")) { //1 代表同意
+  //     granted = true;
+  //   } else {
+  //     granted = false;
+  //   }
 
-    MobSDK.submitPolicyGrantResult(granted, new OperationCallback<Void>() {
-      @Override
-      public void onComplete(Void data) {
-        //success
-        final Map<String, Object> map = new HashMap<>();
-        String resp = String.valueOf(data);
-        Log.d("qqq", "隐私协议授权结果提交：成功 " + resp);
-        boolean success = true;
-        map.put("success", success);
+  //   MobSDK.submitPolicyGrantResult(granted, new OperationCallback<Void>() {
+  //     @Override
+  //     public void onComplete(Void data) {
+  //       //success
+  //       final Map<String, Object> map = new HashMap<>();
+  //       String resp = String.valueOf(data);
+  //       Log.d("qqq", "隐私协议授权结果提交：成功 " + resp);
+  //       boolean success = true;
+  //       map.put("success", success);
 
-        ThreadManager.getMainHandler().post(new Runnable() {
-          @Override
-          public void run() {
-            result.success(map);
-            Log.e(TAG, "MobSDK.submitPolicyGrantResult onComplete===> " + map);
-          }
-        });
-      }
+  //       ThreadManager.getMainHandler().post(new Runnable() {
+  //         @Override
+  //         public void run() {
+  //           result.success(map);
+  //           Log.e(TAG, "MobSDK.submitPolicyGrantResult onComplete===> " + map);
+  //         }
+  //       });
+  //     }
 
-      @Override
-      public void onFailure(Throwable t) {
-        final Map<String, Object> map = new HashMap<>();
-        String resp = String.valueOf(t.getMessage());
-        boolean fail = false;
-        map.put("success", fail);
+  //     @Override
+  //     public void onFailure(Throwable t) {
+  //       final Map<String, Object> map = new HashMap<>();
+  //       String resp = String.valueOf(t.getMessage());
+  //       boolean fail = false;
+  //       map.put("success", fail);
 
-        ThreadManager.getMainHandler().post(new Runnable() {
-          @Override
-          public void run() {
-            result.success(map);
-            Log.e(TAG, "MobSDK.submitPolicyGrantResult onFailure===> " + map);
-          }
-        });
-        Log.d("qqq", "隐私协议授权结果提交：失败" + resp);
-      }
-    });
-  }
+  //       ThreadManager.getMainHandler().post(new Runnable() {
+  //         @Override
+  //         public void run() {
+  //           result.success(map);
+  //           Log.e(TAG, "MobSDK.submitPolicyGrantResult onFailure===> " + map);
+  //         }
+  //       });
+  //       Log.d("qqq", "隐私协议授权结果提交：失败" + resp);
+  //     }
+  //   });
+  // }
 
   //隐私协议的方法
-  private void getPrivacyPolicy(MethodCall call, final Result result) {
-    try {
-      HashMap<String, Object> map = call.arguments();
-      String type = String.valueOf(map.get("type"));
-      int Type = Integer.valueOf(type);
-      //String respValue = MobSDK.getPrivacyPolicy(Type);
+  // private void getPrivacyPolicy(MethodCall call, final Result result) {
+  //   try {
+  //     HashMap<String, Object> map = call.arguments();
+  //     String type = String.valueOf(map.get("type"));
+  //     int Type = Integer.valueOf(type);
+  //     //String respValue = MobSDK.getPrivacyPolicy(Type);
 
-      // 异步方法
-      MobSDK.getPrivacyPolicyAsync(Type, new PrivacyPolicy.OnPolicyListener() {
-        @Override
-        public void onComplete(PrivacyPolicy data) {
-          if (data != null) {
-            Map<String, Object> map = new HashMap<>();
-            HashMap<String, Object> valueMap = new HashMap<>();
-            String resp = String.valueOf(data.getContent());
+  //     // 异步方法
+  //     MobSDK.getPrivacyPolicyAsync(Type, new PrivacyPolicy.OnPolicyListener() {
+  //       @Override
+  //       public void onComplete(PrivacyPolicy data) {
+  //         if (data != null) {
+  //           Map<String, Object> map = new HashMap<>();
+  //           HashMap<String, Object> valueMap = new HashMap<>();
+  //           String resp = String.valueOf(data.getContent());
 
-            valueMap.put("data", resp);
-            map.put("data", valueMap);
-            result.success(map);
-          }
-        }
+  //           valueMap.put("data", resp);
+  //           map.put("data", valueMap);
+  //           result.success(map);
+  //         }
+  //       }
 
-        @Override
-        public void onFailure(Throwable t) {
-          // 请求失败
-          Map<String, Object> map = new HashMap<>();
-          HashMap<String, Object> valueMap = new HashMap<>();
-          String resp = String.valueOf(t.getMessage());
+  //       @Override
+  //       public void onFailure(Throwable t) {
+  //         // 请求失败
+  //         Map<String, Object> map = new HashMap<>();
+  //         HashMap<String, Object> valueMap = new HashMap<>();
+  //         String resp = String.valueOf(t.getMessage());
 
-          valueMap.put("error", resp);
-          map.put("error", valueMap);
-          result.success(map);
-          Log.e(TAG, "隐私协议查询结果：失败 " + t);
-        }
-      });
+  //         valueMap.put("error", resp);
+  //         map.put("error", valueMap);
+  //         result.success(map);
+  //         Log.e(TAG, "隐私协议查询结果：失败 " + t);
+  //       }
+  //     });
 
-    } catch (Throwable t) {
-      Log.e("qqq", "getPrivacyPolicy catch===> " + t);
-    }
+  //   } catch (Throwable t) {
+  //     Log.e("qqq", "getPrivacyPolicy catch===> " + t);
+  //   }
 
 
-  }
+  // }
 
   /**
    * 获取版本
